@@ -1,0 +1,1589 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html><head></head><body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<main>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h1>Clinical Notes NLP: Disease &amp; Symptom Extraction and Classification<a rel="noopener" class="anchor-link" href="#Clinical-Notes-NLP:-Disease-&amp;-Symptom-Extraction-and-Classification">&#182;</a></h1>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<p>Clinical notes are essential for diagnosis and care but are time-consuming to process. This project aims to automate part of that process by:</p>
+<ul>
+<li><p>Extracting diseases and symptoms from the Subjective section</p>
+</li>
+<li><p>Classifying each condition as present or absent</p>
+</li>
+<li><p>Evaluating results against human annotations</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Tools and Technologies:<a rel="noopener" class="anchor-link" href="#Tools-and-Technologies:">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<ul>
+<li>INCEpTION</li>
+<li>SecTag</li>
+<li>spacy &amp; scispacy</li>
+<li>Ollama Langchain LLM</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Load the Clinical Notes<a rel="noopener" class="anchor-link" href="#Load-the-Clinical-Notes">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[1]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="c1"># Path to clinical notes</span>
+<span class="n">notes_dir</span> <span class="o">=</span> <span class="s2">&quot;sample_clinical_notes/&quot;</span>
+
+<span class="c1"># Load all notes into a dictionary</span>
+<span class="n">clinical_notes</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">notes_dir</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.txt&quot;</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">notes_dir</span><span class="p">,</span> <span class="n">file</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">clinical_notes</span><span class="p">[</span><span class="n">file</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Load SecTag Header<a rel="noopener" class="anchor-link" href="#Load-SecTag-Header">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[3]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">sectag_to_regex</span><span class="p">(</span><span class="n">header_file_path</span><span class="p">,</span> <span class="n">seg_col</span><span class="o">=</span><span class="s1">&#39;kmname&#39;</span><span class="p">,</span> <span class="n">header_col</span><span class="o">=</span><span class="s1">&#39;str&#39;</span><span class="p">):</span>
+    <span class="n">header_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">header_file_path</span><span class="p">)</span>
+    <span class="n">header_df</span> <span class="o">=</span> <span class="n">header_df</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="n">header_df</span><span class="p">[</span><span class="n">header_col</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">header_patterns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;^</span><span class="si">{</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">header</span><span class="p">)</span><span class="si">}</span><span class="s1">[</span><span class="se">\\</span><span class="s1">n:]&#39;</span> <span class="k">for</span> <span class="n">header</span> <span class="ow">in</span> <span class="n">headers</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">header_df</span><span class="p">[</span><span class="n">seg_col</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+<span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span> <span class="o">=</span> <span class="n">sectag_to_regex</span><span class="p">(</span><span class="s2">&quot;SecTag/SecTag.csv&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Extract Subjective Section Using SecTag<a rel="noopener" class="anchor-link" href="#Extract-Subjective-Section-Using-SecTag">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[5]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">find_segs</span><span class="p">(</span><span class="n">note</span><span class="p">,</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span><span class="p">):</span>
+    <span class="n">segs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">header_patterns</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">note</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">):</span>
+            <span class="n">seg_head</span> <span class="o">=</span> <span class="p">(</span><span class="n">note</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">span</span><span class="p">()[</span><span class="mi">0</span><span class="p">]:</span><span class="n">m</span><span class="o">.</span><span class="n">span</span><span class="p">()[</span><span class="mi">1</span><span class="p">]],</span> <span class="n">m</span><span class="o">.</span><span class="n">span</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">seg_head</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">segs</span><span class="p">:</span>
+                <span class="n">segs</span><span class="p">[</span><span class="n">seg_head</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">segs</span><span class="p">[</span><span class="n">seg_head</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seg_names</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+    <span class="n">segs</span> <span class="o">=</span> <span class="p">[[</span><span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">segs</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">segs</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+    <span class="n">segs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">segs</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">segs</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">segs</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">segs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">note</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">segs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">segs</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">segs</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">extract_subjective</span><span class="p">(</span><span class="n">note</span><span class="p">,</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span><span class="p">):</span>
+    <span class="n">segments</span> <span class="o">=</span> <span class="n">find_segs</span><span class="p">(</span><span class="n">note</span><span class="p">,</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">header_text</span><span class="p">,</span> <span class="n">section_labels</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="ow">in</span> <span class="n">segments</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;subjective&#39;</span> <span class="ow">in</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">section_labels</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">note</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[7]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">note</span> <span class="ow">in</span> <span class="n">clinical_notes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">subjective_section</span> <span class="o">=</span> <span class="n">extract_subjective</span><span class="p">(</span><span class="n">note</span><span class="p">,</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;--- </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> ---&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">subjective_section</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>--- sample_365.txt ---
+SUBJECTIVE:  The patient is in with several medical problems.  She complains of numbness, tingling, and a pain in the toes primarily of her right foot described as a moderate pain.  She initially describes it as a sharp quality pain, but is unable to characterize it more fully.  She has had it for about a year, but seems to be worsening.  She has little bit of paraesthesias in the left toe as well and seem to involve all the toes of the right foot.  They are not worse with walking.  It seems to be worse when she is in bed.  There is some radiation of the pain up her leg.  She also continues to have bilateral shoulder pains without sinus allergies.  She has hypothyroidism.  She has thrombocythemia, insomnia, and hypertension.
+
+
+
+--- sample_214.txt ---
+S:  The patient is here today with his mom for several complaints.  Number one, he has been having issues with his right shoulder.  Approximately 10 days ago he fell, slipping on ice, did not hit his head but fell straight on his shoulder.  He has been having issues ever since.  He is having difficulties raising his arm over his head.  He does have some intermittent numbness in his fingers at night.  He is not taking any anti-inflammatories or pain relievers.  He is also complaining of a sore throat.  He did have some exposure to Strep and he has a long history of strep throat.  Denies any fevers, rashes, nausea, vomiting, diarrhea, and constipation.  He is also being seen for ADHD by Dr. B.  Adderall and Zoloft.  He takes these once a day.  He does notice when he does not take his medication.  He is doing well in school.  He is socializing well.  He is maintaining his weight and tolerating the medications.  However, he is having issues with anger control.  He realizes when he has anger outbursts that it is a problem.  His mom is concerned.  He actually was willing to go to counseling and was wondering if there was anything available for him at this time.
+PAST MEDICAL/SURGICAL/SOCIAL HISTORY:  Reviewed and unchanged.
+
+
+
+--- sample_388.txt ---
+SUBJECTIVE:  The patient is a 7-year-old male who comes in today with a three-day history of emesis and a four-day history of diarrhea.  Apparently, his brother had similar symptoms.  They had eaten some chicken and then ate some more of it the next day, and I could not quite understand what the problem was because there is a little bit of language barrier, although dad was trying very hard to explain to me what had happened.  But any way, after he and his brother got done eating with chicken, they both felt bad and have continued to feel bad.  The patient has had diarrhea five to six times a day for the last four days and then he had emesis pretty frequently three days ago and then has just had a couple of it each day in the last two days.  He has not had any emesis today.  He has urinated this morning.  His parents are both concerned because he had a fever of 103 last night.  Also, he ate half of a hamburger yesterday and he tried drinking some milk and that is when he had an emesis.  He has been drinking Pedialyte, Gatorade, white grape juice, and 7Up, otherwise he has not been eating anything.
+
+
+
+--- sample_70.txt ---
+SUBJECTIVE:  This is a 78-year-old male who recently had his right knee replaced and also back surgery about a year and a half ago.  He has done well with that.  He does most of the things that he wants to do.  He travels at every chance he has, and he just got back from a cruise.  He denies any type of chest pain, heaviness, tightness, pressure, shortness of breath with stairs only, cough or palpitations.  He sees Dr. Ferguson.  He is known to have Crohn&#39;s and he takes care of that for him.  He sees Dr. Roszhart for his prostate check.  He is a nonsmoker and denies swelling in his ankles.
+
+
+
+--- sample_71.txt ---
+SUBJECTIVE:  A 70-year-old female who was diagnosed with diabetes mellitus last fall.  She has been checking her Accu-Cheks generally once a day, and they range from 82 to a high of 132.  She feels well.  She walks 1-2 miles most days.  If the weather is bad, they go to a local mall.  Otherwise they walk outside.  She does complain of some sinus congestion and drainage for the last several days.  She is up-to-date on her mammogram that she had at the Baylis Building.  She sees Dr. Cheng for her gynecological care.  She is a nonsmoker.  Denies abdominal pain, nausea, vomiting, diarrhea, constipation, blood in her urine, blood in her stools.  She has nocturia x 1.  Denies swelling in her ankles.  She checks her feet regularly.
+
+
+
+--- sample_452.txt ---
+SUBJECTIVE:  Grandfather brings the patient in today because of headaches, mostly in her face.  She is feeling pressure there with a lot of sniffles.  Last night, she complained of sore throat and a loose cough.  Over the last three days, she has had a rash on her face, back and arms.  A lot of fifth disease at school.  She says it itches and they have been doing some Benadryl for this.  She has not had any wheezing lately and is not taking any ongoing medications for her asthma.
+
+
+
+--- sample_391.txt ---
+SUBJECTIVE:  The patient is well-known to me.  He comes in today for a comprehensive evaluation.  Really, again he borders on health crises with high blood pressure, diabetes, and obesity.  He states that he has reached a critical decision in the last week that he understands that he cannot continue with his health decisions as they have been made, specifically the lack of exercise, the obesity, the poor eating habits, etc.  He knows better and has been through some diabetes training.  In fact, interestingly enough, with his current medications which include the Lantus at 30 units along with Actos, glyburide, and metformin, he achieved ideal blood sugar control back in August 2004.  Since that time he has gone off of his regimen of appropriate eating, and has had sugars that are running on average too high at about 178 over the last 14 days.  He has had elevated blood pressure.  His other concerns include allergic symptoms.  He has had irritable bowel syndrome with some cramping.  He has had some rectal bleeding in recent days.  Also once he wakes up he has significant difficulty in getting back to sleep.  He has had no rectal pain, just the bleeding associated with that.
+MEDICATIONS/ALLERGIES:  As above.
+PAST MEDICAL/SURGICAL HISTORY:  Reviewed and updated - see Health Summary Form for details.
+
+
+
+--- sample_392.txt ---
+SUBJECTIVE:  The patient is an 89-year-old lady.  She actually turns 90 later this month, seen today for a short-term followup.  Actually, the main reasons we are seeing her back so soon which are elevated blood pressure and her right arm symptoms are basically resolved.  Blood pressure is better even though she is not currently on the higher dose Mavik likely recommended.  She apparently did not feel well with the higher dose, so she just went back to her previous dose of 1 mg daily.  She thinks, she also has an element of office hypertension.  Also, since she is on Mavik plus verapamil, she could switch over to the combined drug Tarka.  However, when we gave her samples of that she thought they were too big for her to swallow.  Basically, she is just back on her previous blood pressure regimen.  However, her blood pressure seems to be better today.  Her daughter says that they do check it periodically and it is similar to todays reading.  Her right arm symptoms are basically resolved and she attributed that to her muscle problem back in the right shoulder blade.  We did do a C-spine and right shoulder x-ray and those just mainly showed some degenerative changes and possibly some rotator cuff injury with the humeral head quite high up in the glenoid in the right shoulder, but this does not seem to cause her any problems.  She has some vague stomach problems, although apparently it is improved when she stopped Aleve and she does not have any more aches or pains off Aleve.  She takes Tylenol p.r.n., which seems to be enough for her.  She does not think she has any acid reflux symptoms or heartburn.  She does take Tums t.i.d. and also Mylanta at night.  She has had dentures for many, many years and just recently I guess in the last few months, although she was somewhat vague on this, she has had some sores in her mouth.  They do heal up, but then she will get another one.  She also thinks since she has been on the Lexapro, she has somewhat of a tremor of her basically whole body at least upper body including the torso and arms and had all of the daughters who I not noticed to speak of and it is certainly difficult to tell her today that she has much tremor.  They do think the Lexapro has helped to some extent.
+
+
+
+--- sample_2627.txt ---
+SUBJECTIVE:  Review of the medical record shows that the patient is a 97-year-old female patient who has been admitted and has been treated for community acquired pneumonia along with COPD exacerbation.  The patient does have a longstanding history of COPD.  However, she does not use oxygen at her independent assisted living home.  Yesterday, she had made improvement since being here at the hospital.  She needed oxygen.  She was tested for home O2 and qualified for it yesterday also.  Her lungs were very tight.  She did have wheezes bilaterally and rhonchi on the right side mostly.  She appeared to be a bit weak and although she was requesting to be discharged home, she did not appear to be fit for it.
+Overnight, the patient needed to use the rest room.  She stated that she needed to urinate.  She awoke, decided not to call for assistance.  She stated that she did have her nurse call light button next to her and she was unable to gain access to her walker.  She attempted to walk to the rest room on her own.  She sustained a fall.  She stated that she just felt weak.  She bumped her knee and her elbow.  She had femur x-rays, knee x-rays also.  There was possibility of subchondral fracture and some swelling of her suprapatellar bursa on the right side.  This morning, she denied any headache, back pain or neck pain.  She complained mostly of right anterior knee pain for which she had some bruising and swelling.
+
+
+
+--- sample_343.txt ---
+SUBJECTIVE:  This is a 42-year-old white female who comes in today for a complete physical and follow up on asthma.  She says her asthma has been worse over the last three months.  She has been using her inhaler daily.  Her allergies seem to be a little bit worse as well.  Her husband has been hauling corn and this seems to aggravate things.  She has not been taking Allegra daily but when she does take it, it seems to help somewhat.  She has not been taking her Flonase which has helped her in the past.  She also notes that in the past she was on Advair but she got some vaginal irritation with that.
+She had been noticing increasing symptoms of irritability and PMS around her menstrual cycle.  She has been more impatient around that time.  Says otherwise her mood is normal during the rest of the month.  It usually is worse the week before her cycle and improves the day her menstrual cycle starts.  Menses have been regular but somewhat shorter than in the past.  Occasionally she will get some spotting after her cycles.  She denies any hot flashes or night sweats with this.  In reviewing the chart it is noted that she did have 3+ blood with what appeared to be a urinary tract infection previously.  Her urine has not been rechecked.  She recently had lab work and cholesterol drawn for a life insurance application and is going to send me those results when available.
+
+
+
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<p>SecTag is useful for identifying and extracting specific sections of clinical notes, like the &quot;Subjective&quot; section, which helps focus analysis on relevant content. This improves the accuracy of downstream tasks such as symptom or disease extraction. However, its utility depends on how consistently section headers are written. If headers are unclear or non-standard, SecTag may miss them. Also, it only segments text and doesn’t analyze meaning, so it needs to be used with other tools for full clinical understanding.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Extracting Conditions from the Subjective Section: Run spaCy NER on Subjective Text<a rel="noopener" class="anchor-link" href="#Extracting-Conditions-from-the-Subjective-Section:-Run-spaCy-NER-on-Subjective-Text">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[9]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="o">!</span>pip<span class="w"> </span>install<span class="w"> </span>spacy
+<span class="o">!</span>pip<span class="w"> </span>install<span class="w"> </span>scispacy
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>Requirement already satisfied: spacy in /opt/anaconda3/lib/python3.12/site-packages (3.7.5)
+Requirement already satisfied: spacy-legacy&lt;3.1.0,&gt;=3.0.11 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (3.0.12)
+Requirement already satisfied: spacy-loggers&lt;2.0.0,&gt;=1.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (1.0.5)
+Requirement already satisfied: murmurhash&lt;1.1.0,&gt;=0.28.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (1.0.12)
+Requirement already satisfied: cymem&lt;2.1.0,&gt;=2.0.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (2.0.11)
+Requirement already satisfied: preshed&lt;3.1.0,&gt;=3.0.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (3.0.9)
+Requirement already satisfied: thinc&lt;8.3.0,&gt;=8.2.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (8.2.5)
+Requirement already satisfied: wasabi&lt;1.2.0,&gt;=0.9.1 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (1.1.3)
+Requirement already satisfied: srsly&lt;3.0.0,&gt;=2.4.3 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (2.5.1)
+Requirement already satisfied: catalogue&lt;2.1.0,&gt;=2.0.6 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (2.0.10)
+Requirement already satisfied: weasel&lt;0.5.0,&gt;=0.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (0.4.1)
+Requirement already satisfied: typer&lt;1.0.0,&gt;=0.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (0.15.3)
+Requirement already satisfied: tqdm&lt;5.0.0,&gt;=4.38.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (4.67.1)
+Requirement already satisfied: requests&lt;3.0.0,&gt;=2.13.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (2.32.3)
+Requirement already satisfied: pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (2.11.4)
+Requirement already satisfied: jinja2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (3.1.6)
+Requirement already satisfied: setuptools in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (80.3.1)
+Requirement already satisfied: packaging&gt;=20.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (25.0)
+Requirement already satisfied: langcodes&lt;4.0.0,&gt;=3.2.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (3.5.0)
+Requirement already satisfied: numpy&gt;=1.19.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy) (1.26.4)
+Requirement already satisfied: language-data&gt;=1.2 in /opt/anaconda3/lib/python3.12/site-packages (from langcodes&lt;4.0.0,&gt;=3.2.0-&gt;spacy) (1.3.0)
+Requirement already satisfied: annotated-types&gt;=0.6.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy) (0.7.0)
+Requirement already satisfied: pydantic-core==2.33.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy) (2.33.2)
+Requirement already satisfied: typing-extensions&gt;=4.12.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy) (4.13.2)
+Requirement already satisfied: typing-inspection&gt;=0.4.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy) (0.4.0)
+Requirement already satisfied: charset-normalizer&lt;4,&gt;=2 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy) (3.4.2)
+Requirement already satisfied: idna&lt;4,&gt;=2.5 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy) (3.10)
+Requirement already satisfied: urllib3&lt;3,&gt;=1.21.1 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy) (2.4.0)
+Requirement already satisfied: certifi&gt;=2017.4.17 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy) (2025.4.26)
+Requirement already satisfied: blis&lt;0.8.0,&gt;=0.7.8 in /opt/anaconda3/lib/python3.12/site-packages (from thinc&lt;8.3.0,&gt;=8.2.2-&gt;spacy) (0.7.11)
+Requirement already satisfied: confection&lt;1.0.0,&gt;=0.0.1 in /opt/anaconda3/lib/python3.12/site-packages (from thinc&lt;8.3.0,&gt;=8.2.2-&gt;spacy) (0.1.5)
+Requirement already satisfied: click&gt;=8.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy) (8.1.8)
+Requirement already satisfied: shellingham&gt;=1.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy) (1.5.4)
+Requirement already satisfied: rich&gt;=10.11.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy) (14.0.0)
+Requirement already satisfied: cloudpathlib&lt;1.0.0,&gt;=0.7.0 in /opt/anaconda3/lib/python3.12/site-packages (from weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy) (0.21.0)
+Requirement already satisfied: smart-open&lt;8.0.0,&gt;=5.2.1 in /opt/anaconda3/lib/python3.12/site-packages (from weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy) (7.1.0)
+Requirement already satisfied: MarkupSafe&gt;=2.0 in /opt/anaconda3/lib/python3.12/site-packages (from jinja2-&gt;spacy) (3.0.2)
+Requirement already satisfied: marisa-trie&gt;=1.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from language-data&gt;=1.2-&gt;langcodes&lt;4.0.0,&gt;=3.2.0-&gt;spacy) (1.2.1)
+Requirement already satisfied: markdown-it-py&gt;=2.2.0 in /opt/anaconda3/lib/python3.12/site-packages (from rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy) (3.0.0)
+Requirement already satisfied: pygments&lt;3.0.0,&gt;=2.13.0 in /opt/anaconda3/lib/python3.12/site-packages (from rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy) (2.19.1)
+Requirement already satisfied: wrapt in /opt/anaconda3/lib/python3.12/site-packages (from smart-open&lt;8.0.0,&gt;=5.2.1-&gt;weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy) (1.17.2)
+Requirement already satisfied: mdurl~=0.1 in /opt/anaconda3/lib/python3.12/site-packages (from markdown-it-py&gt;=2.2.0-&gt;rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy) (0.1.2)
+Requirement already satisfied: scispacy in /opt/anaconda3/lib/python3.12/site-packages (0.5.5)
+Requirement already satisfied: spacy&lt;3.8.0,&gt;=3.7.0 in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (3.7.5)
+Requirement already satisfied: scipy in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (1.13.1)
+Requirement already satisfied: requests&lt;3.0.0,&gt;=2.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (2.32.3)
+Requirement already satisfied: conllu in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (6.0.0)
+Requirement already satisfied: numpy in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (1.26.4)
+Requirement already satisfied: joblib in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (1.4.2)
+Requirement already satisfied: scikit-learn&gt;=0.20.3 in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (1.5.1)
+Requirement already satisfied: pysbd in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (0.3.4)
+Requirement already satisfied: nmslib-metabrainz==2.1.3 in /opt/anaconda3/lib/python3.12/site-packages (from scispacy) (2.1.3)
+Requirement already satisfied: pybind11&gt;=2.2.3 in /opt/anaconda3/lib/python3.12/site-packages (from nmslib-metabrainz==2.1.3-&gt;scispacy) (2.13.6)
+Requirement already satisfied: psutil in /opt/anaconda3/lib/python3.12/site-packages (from nmslib-metabrainz==2.1.3-&gt;scispacy) (5.9.0)
+Requirement already satisfied: charset-normalizer&lt;4,&gt;=2 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.0.0-&gt;scispacy) (3.4.2)
+Requirement already satisfied: idna&lt;4,&gt;=2.5 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.0.0-&gt;scispacy) (3.10)
+Requirement already satisfied: urllib3&lt;3,&gt;=1.21.1 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.0.0-&gt;scispacy) (2.4.0)
+Requirement already satisfied: certifi&gt;=2017.4.17 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.0.0-&gt;scispacy) (2025.4.26)
+Requirement already satisfied: threadpoolctl&gt;=3.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from scikit-learn&gt;=0.20.3-&gt;scispacy) (3.5.0)
+Requirement already satisfied: spacy-legacy&lt;3.1.0,&gt;=3.0.11 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (3.0.12)
+Requirement already satisfied: spacy-loggers&lt;2.0.0,&gt;=1.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.0.5)
+Requirement already satisfied: murmurhash&lt;1.1.0,&gt;=0.28.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.0.12)
+Requirement already satisfied: cymem&lt;2.1.0,&gt;=2.0.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (2.0.11)
+Requirement already satisfied: preshed&lt;3.1.0,&gt;=3.0.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (3.0.9)
+Requirement already satisfied: thinc&lt;8.3.0,&gt;=8.2.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (8.2.5)
+Requirement already satisfied: wasabi&lt;1.2.0,&gt;=0.9.1 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.1.3)
+Requirement already satisfied: srsly&lt;3.0.0,&gt;=2.4.3 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (2.5.1)
+Requirement already satisfied: catalogue&lt;2.1.0,&gt;=2.0.6 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (2.0.10)
+Requirement already satisfied: weasel&lt;0.5.0,&gt;=0.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.4.1)
+Requirement already satisfied: typer&lt;1.0.0,&gt;=0.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.15.3)
+Requirement already satisfied: tqdm&lt;5.0.0,&gt;=4.38.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (4.67.1)
+Requirement already satisfied: pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (2.11.4)
+Requirement already satisfied: jinja2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (3.1.6)
+Requirement already satisfied: setuptools in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (80.3.1)
+Requirement already satisfied: packaging&gt;=20.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (25.0)
+Requirement already satisfied: langcodes&lt;4.0.0,&gt;=3.2.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (3.5.0)
+Requirement already satisfied: language-data&gt;=1.2 in /opt/anaconda3/lib/python3.12/site-packages (from langcodes&lt;4.0.0,&gt;=3.2.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.3.0)
+Requirement already satisfied: annotated-types&gt;=0.6.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.7.0)
+Requirement already satisfied: pydantic-core==2.33.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (2.33.2)
+Requirement already satisfied: typing-extensions&gt;=4.12.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (4.13.2)
+Requirement already satisfied: typing-inspection&gt;=0.4.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.4.0)
+Requirement already satisfied: blis&lt;0.8.0,&gt;=0.7.8 in /opt/anaconda3/lib/python3.12/site-packages (from thinc&lt;8.3.0,&gt;=8.2.2-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.7.11)
+Requirement already satisfied: confection&lt;1.0.0,&gt;=0.0.1 in /opt/anaconda3/lib/python3.12/site-packages (from thinc&lt;8.3.0,&gt;=8.2.2-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.1.5)
+Requirement already satisfied: click&gt;=8.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (8.1.8)
+Requirement already satisfied: shellingham&gt;=1.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.5.4)
+Requirement already satisfied: rich&gt;=10.11.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (14.0.0)
+Requirement already satisfied: cloudpathlib&lt;1.0.0,&gt;=0.7.0 in /opt/anaconda3/lib/python3.12/site-packages (from weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.21.0)
+Requirement already satisfied: smart-open&lt;8.0.0,&gt;=5.2.1 in /opt/anaconda3/lib/python3.12/site-packages (from weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (7.1.0)
+Requirement already satisfied: MarkupSafe&gt;=2.0 in /opt/anaconda3/lib/python3.12/site-packages (from jinja2-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (3.0.2)
+Requirement already satisfied: marisa-trie&gt;=1.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from language-data&gt;=1.2-&gt;langcodes&lt;4.0.0,&gt;=3.2.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.2.1)
+Requirement already satisfied: markdown-it-py&gt;=2.2.0 in /opt/anaconda3/lib/python3.12/site-packages (from rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (3.0.0)
+Requirement already satisfied: pygments&lt;3.0.0,&gt;=2.13.0 in /opt/anaconda3/lib/python3.12/site-packages (from rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (2.19.1)
+Requirement already satisfied: wrapt in /opt/anaconda3/lib/python3.12/site-packages (from smart-open&lt;8.0.0,&gt;=5.2.1-&gt;weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (1.17.2)
+Requirement already satisfied: mdurl~=0.1 in /opt/anaconda3/lib/python3.12/site-packages (from markdown-it-py&gt;=2.2.0-&gt;rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.0-&gt;scispacy) (0.1.2)
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[11]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="o">!</span>pip<span class="w"> </span>install<span class="w"> </span>https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>Collecting https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz
+  Downloading https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz (14.8 MB)
+     <span class="ansi-black-intense-fg">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span> <span class="ansi-green-fg">14.8/14.8 MB</span> <span class="ansi-red-fg">6.2 MB/s</span> eta <span class="ansi-cyan-fg">0:00:00</span>a <span class="ansi-cyan-fg">0:00:01</span>m
+  Preparing metadata (setup.py) ... done
+Requirement already satisfied: spacy&lt;3.8.0,&gt;=3.7.4 in /opt/anaconda3/lib/python3.12/site-packages (from en_core_sci_sm==0.5.4) (3.7.5)
+Requirement already satisfied: spacy-legacy&lt;3.1.0,&gt;=3.0.11 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.0.12)
+Requirement already satisfied: spacy-loggers&lt;2.0.0,&gt;=1.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.0.5)
+Requirement already satisfied: murmurhash&lt;1.1.0,&gt;=0.28.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.0.12)
+Requirement already satisfied: cymem&lt;2.1.0,&gt;=2.0.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.0.11)
+Requirement already satisfied: preshed&lt;3.1.0,&gt;=3.0.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.0.9)
+Requirement already satisfied: thinc&lt;8.3.0,&gt;=8.2.2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (8.2.5)
+Requirement already satisfied: wasabi&lt;1.2.0,&gt;=0.9.1 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.1.3)
+Requirement already satisfied: srsly&lt;3.0.0,&gt;=2.4.3 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.5.1)
+Requirement already satisfied: catalogue&lt;2.1.0,&gt;=2.0.6 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.0.10)
+Requirement already satisfied: weasel&lt;0.5.0,&gt;=0.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.4.1)
+Requirement already satisfied: typer&lt;1.0.0,&gt;=0.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.15.3)
+Requirement already satisfied: tqdm&lt;5.0.0,&gt;=4.38.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (4.67.1)
+Requirement already satisfied: requests&lt;3.0.0,&gt;=2.13.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.32.3)
+Requirement already satisfied: pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.11.4)
+Requirement already satisfied: jinja2 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.1.6)
+Requirement already satisfied: setuptools in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (80.3.1)
+Requirement already satisfied: packaging&gt;=20.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (25.0)
+Requirement already satisfied: langcodes&lt;4.0.0,&gt;=3.2.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.5.0)
+Requirement already satisfied: numpy&gt;=1.19.0 in /opt/anaconda3/lib/python3.12/site-packages (from spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.26.4)
+Requirement already satisfied: language-data&gt;=1.2 in /opt/anaconda3/lib/python3.12/site-packages (from langcodes&lt;4.0.0,&gt;=3.2.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.3.0)
+Requirement already satisfied: annotated-types&gt;=0.6.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.7.0)
+Requirement already satisfied: pydantic-core==2.33.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.33.2)
+Requirement already satisfied: typing-extensions&gt;=4.12.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (4.13.2)
+Requirement already satisfied: typing-inspection&gt;=0.4.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic!=1.8,!=1.8.1,&lt;3.0.0,&gt;=1.7.4-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.4.0)
+Requirement already satisfied: charset-normalizer&lt;4,&gt;=2 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.4.2)
+Requirement already satisfied: idna&lt;4,&gt;=2.5 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.10)
+Requirement already satisfied: urllib3&lt;3,&gt;=1.21.1 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.4.0)
+Requirement already satisfied: certifi&gt;=2017.4.17 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3.0.0,&gt;=2.13.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2025.4.26)
+Requirement already satisfied: blis&lt;0.8.0,&gt;=0.7.8 in /opt/anaconda3/lib/python3.12/site-packages (from thinc&lt;8.3.0,&gt;=8.2.2-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.7.11)
+Requirement already satisfied: confection&lt;1.0.0,&gt;=0.0.1 in /opt/anaconda3/lib/python3.12/site-packages (from thinc&lt;8.3.0,&gt;=8.2.2-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.1.5)
+Requirement already satisfied: click&gt;=8.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (8.1.8)
+Requirement already satisfied: shellingham&gt;=1.3.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.5.4)
+Requirement already satisfied: rich&gt;=10.11.0 in /opt/anaconda3/lib/python3.12/site-packages (from typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (14.0.0)
+Requirement already satisfied: cloudpathlib&lt;1.0.0,&gt;=0.7.0 in /opt/anaconda3/lib/python3.12/site-packages (from weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.21.0)
+Requirement already satisfied: smart-open&lt;8.0.0,&gt;=5.2.1 in /opt/anaconda3/lib/python3.12/site-packages (from weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (7.1.0)
+Requirement already satisfied: MarkupSafe&gt;=2.0 in /opt/anaconda3/lib/python3.12/site-packages (from jinja2-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.0.2)
+Requirement already satisfied: marisa-trie&gt;=1.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from language-data&gt;=1.2-&gt;langcodes&lt;4.0.0,&gt;=3.2.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.2.1)
+Requirement already satisfied: markdown-it-py&gt;=2.2.0 in /opt/anaconda3/lib/python3.12/site-packages (from rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (3.0.0)
+Requirement already satisfied: pygments&lt;3.0.0,&gt;=2.13.0 in /opt/anaconda3/lib/python3.12/site-packages (from rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (2.19.1)
+Requirement already satisfied: wrapt in /opt/anaconda3/lib/python3.12/site-packages (from smart-open&lt;8.0.0,&gt;=5.2.1-&gt;weasel&lt;0.5.0,&gt;=0.1.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (1.17.2)
+Requirement already satisfied: mdurl~=0.1 in /opt/anaconda3/lib/python3.12/site-packages (from markdown-it-py&gt;=2.2.0-&gt;rich&gt;=10.11.0-&gt;typer&lt;1.0.0,&gt;=0.3.0-&gt;spacy&lt;3.8.0,&gt;=3.7.4-&gt;en_core_sci_sm==0.5.4) (0.1.2)
+Building wheels for collected packages: en_core_sci_sm
+  Building wheel for en_core_sci_sm (setup.py) ... done
+  Created wheel for en_core_sci_sm: filename=en_core_sci_sm-0.5.4-py3-none-any.whl size=14778526 sha256=6e546ad60ffb96da2953f49dc5345925b268b8fbcfbfb7d3257616fd484d0b3b
+  Stored in directory: /Users/marandadominguez/Library/Caches/pip/wheels/49/7f/0f/ec0fc3a935bfe55e6ef2ca04b7a31e33cbd533a6d7cbd9e11e
+Successfully built en_core_sci_sm
+Installing collected packages: en_core_sci_sm
+Successfully installed en_core_sci_sm-0.5.4
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[13]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">scispacy</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">spacy</span>
+
+<span class="c1"># Load the clinical/biomedical model</span>
+<span class="n">nlp</span> <span class="o">=</span> <span class="n">spacy</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;en_core_sci_sm&quot;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">extract_conditions</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="n">doc</span> <span class="o">=</span> <span class="n">nlp</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">ent</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">ent</span> <span class="ow">in</span> <span class="n">doc</span><span class="o">.</span><span class="n">ents</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ent</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">())</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">]</span>  <span class="c1"># Filter short medical terms</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>/opt/anaconda3/lib/python3.12/site-packages/spacy/language.py:2195: FutureWarning: Possible set union at position 6328
+  deserializers[&quot;tokenizer&quot;] = lambda p: self.tokenizer.from_disk(  # type: ignore[union-attr]
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[15]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Loop through subjective sections and extract conditions</span>
+<span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">note</span> <span class="ow">in</span> <span class="n">clinical_notes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">subjective</span> <span class="o">=</span> <span class="n">extract_subjective</span><span class="p">(</span><span class="n">note</span><span class="p">,</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">subjective</span><span class="p">:</span>
+        <span class="k">continue</span>
+
+    <span class="n">conditions</span> <span class="o">=</span> <span class="n">extract_conditions</span><span class="p">(</span><span class="n">subjective</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;--- </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> ---&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; Extracted Conditions:&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">conditions</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">cond</span> <span class="ow">in</span> <span class="n">conditions</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; - </span><span class="si">{</span><span class="n">cond</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; - None found&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>--- sample_365.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - patient
+ - medical problems
+ - complains
+ - numbness
+ - tingling
+ - pain
+ - right foot
+ - moderate pain
+ - sharp quality
+ - pain
+ - year
+ - worsening
+ - paraesthesias
+ - left toe
+ - toes
+ - right foot
+ - walking
+ - bed
+ - radiation
+ - pain
+ - leg
+ - bilateral shoulder pains
+ - sinus
+ - allergies
+ - hypothyroidism
+ - thrombocythemia
+ - insomnia
+ - hypertension
+
+
+
+--- sample_214.txt ---
+ Extracted Conditions:
+ - S
+ - patient
+ - mom
+ - complaints
+ - issues
+ - right shoulder
+ - days
+ - ice
+ - head
+ - issues
+ - difficulties
+ - head
+ - intermittent numbness
+ - fingers
+ - night
+ - anti-inflammatories
+ - pain relievers
+ - sore throat
+ - exposure to
+ - Strep
+ - long history
+ - strep throat
+ - Denies
+ - fevers
+ - rashes
+ - nausea
+ - vomiting
+ - diarrhea
+ - constipation
+ - ADHD
+ - Dr.
+ - Adderall
+ - Zoloft
+ - day
+ - notice
+ - medication
+ - school
+ - weight
+ - medications
+ - issues
+ - anger
+ - anger
+ - outbursts
+ - problem
+ - mom
+ - willing
+ - counseling
+ - wondering
+ - Reviewed
+ - unchanged
+
+
+
+--- sample_388.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - patient
+ - male
+ - comes
+ - three-day history
+ - emesis
+ - four-day history
+ - diarrhea
+ - brother
+ - symptoms
+ - eaten
+ - chicken
+ - ate
+ - I
+ - problem
+ - language barrier
+ - dad
+ - happened
+ - brother
+ - eating
+ - chicken
+ - felt
+ - feel bad
+ - patient
+ - diarrhea
+ - day
+ - days
+ - emesis
+ - pretty
+ - days
+ - couple
+ - day
+ - days
+ - emesis
+ - today
+ - morning
+ - parents
+ - fever
+ - night
+ - hamburger
+ - tried drinking
+ - milk
+ - emesis
+ - drinking
+ - Pedialyte
+ - Gatorade
+ - white grape juice
+ - anything
+
+
+
+--- sample_70.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - male
+ - right knee
+ - back surgery
+ - year
+ - wants
+ - travels
+ - chance
+ - cruise
+ - denies
+ - chest pain
+ - heaviness
+ - tightness
+ - pressure
+ - shortness
+ - breath with
+ - stairs
+ - cough
+ - palpitations
+ - sees Dr. Ferguson
+ - Crohn&#39;s
+ - care
+ - sees Dr. Roszhart
+ - prostate check
+ - nonsmoker
+ - denies swelling
+ - ankles
+
+
+
+--- sample_71.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - female
+ - diagnosed
+ - diabetes mellitus
+ - fall
+ - checking
+ - Accu-Cheks
+ - day
+ - feels
+ - miles
+ - days
+ - weather
+ - local
+ - mall
+ - walk
+ - complain
+ - sinus
+ - congestion
+ - drainage
+ - days
+ - mammogram
+ - Baylis Building
+ - sees Dr. Cheng
+ - gynecological care
+ - nonsmoker
+ - abdominal pain
+ - nausea
+ - vomiting
+ - diarrhea
+ - constipation
+ - blood
+ - urine
+ - blood
+ - stools
+ - nocturia
+ - swelling
+ - ankles
+ - checks
+ - feet
+
+
+
+--- sample_452.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - Grandfather
+ - brings
+ - patient
+ - headaches
+ - face
+ - pressure
+ - lot of sniffles
+ - night
+ - complained
+ - sore throat
+ - loose cough
+ - days
+ - rash
+ - face
+ - back
+ - arms
+ - school
+ - itches
+ - Benadryl
+ - lately
+ - medications
+ - asthma
+
+
+
+--- sample_391.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - patient
+ - comes
+ - comprehensive
+ - evaluation
+ - borders
+ - health crises
+ - high blood pressure
+ - diabetes
+ - obesity
+ - states
+ - week
+ - health decisions
+ - lack
+ - exercise
+ - obesity
+ - poor eating habits
+ - diabetes training
+ - medications
+ - Lantus
+ - units
+ - Actos
+ - glyburide
+ - metformin
+ - ideal
+ - gone
+ - regimen
+ - eating
+ - sugars
+ - average
+ - days
+ - elevated
+ - blood pressure
+ - allergic symptoms
+ - irritable bowel syndrome
+ - cramping
+ - rectal bleeding
+ - days
+ - difficulty
+ - sleep
+ - rectal pain
+ - bleeding
+ - associated with
+ - MEDICATIONS/ALLERGIES
+ - Reviewed
+ - updated
+ - see Health Summary Form
+ - details
+
+
+
+--- sample_392.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - patient
+ - lady
+ - turns
+ - month
+ - short-term
+ - followup
+ - reasons
+ - seeing
+ - elevated
+ - blood pressure
+ - right arm symptoms
+ - Blood pressure
+ - higher
+ - dose
+ - Mavik
+ - higher
+ - dose
+ - went
+ - dose
+ - daily
+ - element
+ - office hypertension
+ - Mavik plus verapamil
+ - switch
+ - combined drug
+ - Tarka
+ - samples
+ - swallow
+ - blood pressure
+ - blood pressure
+ - says
+ - check
+ - reading
+ - right arm
+ - symptoms
+ - resolved
+ - muscle problem
+ - right shoulder blade
+ - C-spine
+ - right shoulder x-ray
+ - degenerative changes
+ - rotator
+ - injury
+ - humeral head
+ - glenoid
+ - right shoulder
+ - problems
+ - vague stomach
+ - stopped
+ - aches
+ - pains
+ - Tylenol
+ - acid reflux
+ - symptoms
+ - heartburn
+ - Tums t.i.d
+ - Mylanta
+ - night
+ - dentures
+ - years
+ - I guess
+ - months
+ - sores
+ - mouth
+ - thinks
+ - Lexapro
+ - tremor
+ - basically
+ - upper body
+ - torso
+ - arms
+ - daughters
+ - tell
+ - tremor
+ - Lexapro
+ - extent
+
+
+
+--- sample_2627.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - Review
+ - medical record
+ - patient
+ - female
+ - patient
+ - admitted
+ - treated
+ - community
+ - pneumonia
+ - COPD
+ - exacerbation
+ - patient
+ - history
+ - COPD
+ - oxygen
+ - improvement
+ - hospital
+ - oxygen
+ - home O2
+ - qualified
+ - Her
+ - lungs
+ - bilaterally
+ - right side
+ - weak
+ - discharged home
+ - fit
+ - patient
+ - rest room
+ - urinate
+ - assistance
+ - nurse
+ - walker
+ - walk
+ - rest room
+ - fall
+ - weak
+ - knee
+ - elbow
+ - femur
+ - x-rays
+ - knee x-rays
+ - subchondral fracture
+ - swelling
+ - suprapatellar
+ - right side
+ - morning
+ - headache
+ - back pain
+ - neck pain
+ - complained
+ - right anterior knee pain
+ - bruising
+ - swelling
+
+
+
+--- sample_343.txt ---
+ Extracted Conditions:
+ - SUBJECTIVE
+ - white female
+ - comes
+ - physical
+ - follow up
+ - asthma
+ - asthma
+ - months
+ - inhaler daily
+ - Her allergies
+ - husband
+ - aggravate
+ - Allegra
+ - daily
+ - Flonase
+ - Advair
+ - vaginal irritation
+ - noticing
+ - increasing
+ - symptoms
+ - irritability
+ - PMS
+ - menstrual cycle
+ - impatient
+ - time
+ - Says
+ - mood
+ - rest
+ - month
+ - week
+ - cycle
+ - improves
+ - day
+ - menstrual cycle
+ - shorter
+ - past
+ - spotting
+ - cycles
+ - denies
+ - hot flashes
+ - night sweats
+ - reviewing
+ - blood
+ - urinary tract infection
+ - urine
+ - lab work
+ - cholesterol
+ - life insurance
+ - application
+ - results
+
+
+
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<p>spaCy’s named entity recognition (NER), especially with SciSpaCy models, is valuable for identifying medical terms like diseases and symptoms from clinical notes. It works quickly and integrates well with other Python tools, making it efficient for large datasets. However, its accuracy is limited by the model used—smaller models like en_core_sci_sm may miss complex or rare terms, while larger models require more resources. Also, spaCy NER does not classify entities as present or absent, so additional logic or models are needed for contextual interpretation.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Use Ollama LLM LangChain to classify symptoms<a rel="noopener" class="anchor-link" href="#Use-Ollama-LLM-LangChain-to-classify-symptoms">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[17]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="o">!</span>pip<span class="w"> </span>install<span class="w"> </span>langchain-ollama
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>Collecting langchain-ollama
+  Downloading langchain_ollama-0.3.2-py3-none-any.whl.metadata (1.5 kB)
+Collecting ollama&lt;1,&gt;=0.4.4 (from langchain-ollama)
+  Downloading ollama-0.4.8-py3-none-any.whl.metadata (4.7 kB)
+Collecting langchain-core&lt;1.0.0,&gt;=0.3.52 (from langchain-ollama)
+  Downloading langchain_core-0.3.58-py3-none-any.whl.metadata (5.9 kB)
+Collecting langsmith&lt;0.4,&gt;=0.1.125 (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama)
+  Downloading langsmith-0.3.42-py3-none-any.whl.metadata (15 kB)
+Requirement already satisfied: tenacity!=8.4.0,&lt;10.0.0,&gt;=8.1.0 in /opt/anaconda3/lib/python3.12/site-packages (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (8.2.3)
+Requirement already satisfied: jsonpatch&lt;2.0,&gt;=1.33 in /opt/anaconda3/lib/python3.12/site-packages (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (1.33)
+Requirement already satisfied: PyYAML&gt;=5.3 in /opt/anaconda3/lib/python3.12/site-packages (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (6.0.1)
+Collecting packaging&lt;25,&gt;=23.2 (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama)
+  Downloading packaging-24.2-py3-none-any.whl.metadata (3.2 kB)
+Requirement already satisfied: typing-extensions&gt;=4.7 in /opt/anaconda3/lib/python3.12/site-packages (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (4.13.2)
+Requirement already satisfied: pydantic&lt;3.0.0,&gt;=2.7.4 in /opt/anaconda3/lib/python3.12/site-packages (from langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (2.11.4)
+Requirement already satisfied: httpx&lt;0.29,&gt;=0.27 in /opt/anaconda3/lib/python3.12/site-packages (from ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (0.27.0)
+Requirement already satisfied: anyio in /opt/anaconda3/lib/python3.12/site-packages (from httpx&lt;0.29,&gt;=0.27-&gt;ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (4.2.0)
+Requirement already satisfied: certifi in /opt/anaconda3/lib/python3.12/site-packages (from httpx&lt;0.29,&gt;=0.27-&gt;ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (2025.4.26)
+Requirement already satisfied: httpcore==1.* in /opt/anaconda3/lib/python3.12/site-packages (from httpx&lt;0.29,&gt;=0.27-&gt;ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (1.0.2)
+Requirement already satisfied: idna in /opt/anaconda3/lib/python3.12/site-packages (from httpx&lt;0.29,&gt;=0.27-&gt;ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (3.10)
+Requirement already satisfied: sniffio in /opt/anaconda3/lib/python3.12/site-packages (from httpx&lt;0.29,&gt;=0.27-&gt;ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (1.3.0)
+Requirement already satisfied: h11&lt;0.15,&gt;=0.13 in /opt/anaconda3/lib/python3.12/site-packages (from httpcore==1.*-&gt;httpx&lt;0.29,&gt;=0.27-&gt;ollama&lt;1,&gt;=0.4.4-&gt;langchain-ollama) (0.14.0)
+Requirement already satisfied: jsonpointer&gt;=1.9 in /opt/anaconda3/lib/python3.12/site-packages (from jsonpatch&lt;2.0,&gt;=1.33-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (2.1)
+Collecting orjson&lt;4.0.0,&gt;=3.9.14 (from langsmith&lt;0.4,&gt;=0.1.125-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama)
+  Downloading orjson-3.10.18-cp312-cp312-macosx_10_15_x86_64.macosx_11_0_arm64.macosx_10_15_universal2.whl.metadata (41 kB)
+Requirement already satisfied: requests&lt;3,&gt;=2 in /opt/anaconda3/lib/python3.12/site-packages (from langsmith&lt;0.4,&gt;=0.1.125-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (2.32.3)
+Requirement already satisfied: requests-toolbelt&lt;2.0.0,&gt;=1.0.0 in /opt/anaconda3/lib/python3.12/site-packages (from langsmith&lt;0.4,&gt;=0.1.125-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (1.0.0)
+Requirement already satisfied: zstandard&lt;0.24.0,&gt;=0.23.0 in /opt/anaconda3/lib/python3.12/site-packages (from langsmith&lt;0.4,&gt;=0.1.125-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (0.23.0)
+Requirement already satisfied: annotated-types&gt;=0.6.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic&lt;3.0.0,&gt;=2.7.4-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (0.7.0)
+Requirement already satisfied: pydantic-core==2.33.2 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic&lt;3.0.0,&gt;=2.7.4-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (2.33.2)
+Requirement already satisfied: typing-inspection&gt;=0.4.0 in /opt/anaconda3/lib/python3.12/site-packages (from pydantic&lt;3.0.0,&gt;=2.7.4-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (0.4.0)
+Requirement already satisfied: charset-normalizer&lt;4,&gt;=2 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3,&gt;=2-&gt;langsmith&lt;0.4,&gt;=0.1.125-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (3.4.2)
+Requirement already satisfied: urllib3&lt;3,&gt;=1.21.1 in /opt/anaconda3/lib/python3.12/site-packages (from requests&lt;3,&gt;=2-&gt;langsmith&lt;0.4,&gt;=0.1.125-&gt;langchain-core&lt;1.0.0,&gt;=0.3.52-&gt;langchain-ollama) (2.4.0)
+Downloading langchain_ollama-0.3.2-py3-none-any.whl (20 kB)
+Downloading langchain_core-0.3.58-py3-none-any.whl (437 kB)
+Downloading ollama-0.4.8-py3-none-any.whl (13 kB)
+Downloading langsmith-0.3.42-py3-none-any.whl (360 kB)
+Downloading packaging-24.2-py3-none-any.whl (65 kB)
+Downloading orjson-3.10.18-cp312-cp312-macosx_10_15_x86_64.macosx_11_0_arm64.macosx_10_15_universal2.whl (249 kB)
+Installing collected packages: packaging, orjson, ollama, langsmith, langchain-core, langchain-ollama
+  Attempting uninstall: packaging
+    Found existing installation: packaging 25.0
+    Uninstalling packaging-25.0:
+      Successfully uninstalled packaging-25.0
+<span class="ansi-red-fg">ERROR: pip&#39;s dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+streamlit 1.37.1 requires rich&lt;14,&gt;=10.14.0, but you have rich 14.0.0 which is incompatible.</span><span class="ansi-red-fg">
+</span>Successfully installed langchain-core-0.3.58 langchain-ollama-0.3.2 langsmith-0.3.42 ollama-0.4.8 orjson-3.10.18 packaging-24.2
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[19]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_ollama</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOllama</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.prompts</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatPromptTemplate</span>
+
+<span class="c1"># Initialize the Ollama LLM</span>
+<span class="n">llm</span> <span class="o">=</span> <span class="n">ChatOllama</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">)</span>  <span class="c1"># Make sure &quot;llama3&quot; or correct model is installed in Ollama</span>
+
+<span class="c1"># Define prompt</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">ChatPromptTemplate</span><span class="o">.</span><span class="n">from_template</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">You are a clinical AI assistant. Given the following subjective section:</span>
+<span class="si">{text}</span>
+
+<span class="s2">Extract all diseases and symptoms mentioned. For each one, say whether it&#39;s PRESENT or ABSENT based on context.</span>
+<span class="s2">Format: &lt;condition&gt;: PRESENT/ABSENT</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
+<span class="c1"># Loop through notes</span>
+<span class="k">for</span> <span class="n">filename</span><span class="p">,</span> <span class="n">note</span> <span class="ow">in</span> <span class="n">clinical_notes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">subjective</span> <span class="o">=</span> <span class="n">extract_subjective</span><span class="p">(</span><span class="n">note</span><span class="p">,</span> <span class="n">header_patterns</span><span class="p">,</span> <span class="n">seg_names</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">subjective</span><span class="p">:</span>
+        <span class="k">continue</span>
+
+    <span class="n">conditions</span> <span class="o">=</span> <span class="n">extract_conditions</span><span class="p">(</span><span class="n">subjective</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;--- </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> ---&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Extracted Conditions and Classification:&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">conditions</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">llm_input</span> <span class="o">=</span> <span class="n">prompt</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">subjective</span><span class="p">})</span>  <span class="c1"># Generate prompt string</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">llm</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">llm_input</span><span class="p">)</span>  <span class="c1"># Get model response</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error calling Ollama: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; - No conditions found for classification.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>--- sample_365.txt ---
+Extracted Conditions and Classification:
+Here are the extracted diseases and symptoms with their presence status:
+
+1. Numbness: PRESENT
+2. Tingling: PRESENT
+3. Pain in the toes (moderate): PRESENT
+4. Sharp quality pain: ABSENT (described, but not characterized further)
+5. Paraesthesias in the left toe: PRESENT
+6. Pain radiation up the leg: PRESENT
+7. Bilateral shoulder pains: PRESENT
+8. Sinus allergies: ABSENT
+9. Hypothyroidism: PRESENT
+10. Thrombocythemia: PRESENT
+11. Insomnia: PRESENT
+12. Hypertension: PRESENT
+
+Note that some conditions (e.g., sinus allergies) are not explicitly mentioned as being present or absent, but rather stated to be ABSENT based on the context.
+
+
+
+--- sample_214.txt ---
+Extracted Conditions and Classification:
+Here are the extracted conditions and symptoms with their presence status:
+
+1. Shoulder injury (from fall): PRESENT
+2. Intermittent numbness in fingers at night: PRESENT
+3. Sore throat: PRESENT
+4. Strep throat (history): ABSENT (no current infection mentioned)
+5. ADHD (Attention Deficit Hyperactivity Disorder): PRESENT
+6. Anger control issues: PRESENT
+
+Note that some conditions, like Strep throat, are not currently present but have a history, while others, like shoulder injury and numbness in fingers, are presenting symptoms.
+
+
+
+--- sample_388.txt ---
+Extracted Conditions and Classification:
+Based on the provided information, here are the extracted diseases and symptoms with their presence status:
+
+1. Gastroenteritis (presumably food poisoning): PRESENT
+2. Diarrhea: PRESENT
+3. Vomiting (emesis): ABSENT (although he had it in the past)
+4. Fever: PRESENT
+5. Dehydration: Suggested by consumption of Pedialyte, Gatorade, white grape juice, and 7Up, which is often used to treat dehydration; however, this is not explicitly stated as a diagnosis.
+6. Food poisoning from chicken: Suggested by the patient&#39;s and his brother&#39;s similar symptoms after consuming chicken; however, this is not explicitly stated as a diagnosis.
+
+Note that some of these conditions are implicit or suggested based on the information provided, rather than being directly stated as diagnoses.
+
+
+
+--- sample_70.txt ---
+Extracted Conditions and Classification:
+Based on the provided information, here are the extracted diseases and symptoms with their corresponding presence/absence status:
+
+1. Knee replacement surgery: PRESENT (implied by &quot;recently had his right knee replaced&quot;)
+2. Back surgery: PRESENT (mentioned as happening about a year and a half ago)
+3. Crohn&#39;s disease: PRESENT (he takes care of it, implying that he is managing the condition)
+4. Prostate check (presumably referring to prostate cancer screening): PRESENT (he sees Dr. Roszhart for his prostate check, suggesting regular monitoring)
+5. Chest pain: ABSENT
+6. Heaviness: ABSENT
+7. Tightness: ABSENT
+8. Pressure: ABSENT
+9. Shortness of breath with stairs only: ABSENT
+10. Cough: ABSENT
+11. Palpitations: ABSENT
+12. Swelling in ankles: ABSENT
+
+Note that while the patient is a nonsmoker, this piece of information does not directly relate to any specific disease or symptom mentioned in the subjective section.
+
+
+
+--- sample_71.txt ---
+Extracted Conditions and Classification:
+Based on the provided subjective section, here are the extracted diseases and symptoms with their presence status:
+
+1. Diabetes mellitus: PRESENT
+2. Sinus congestion: PRESENT
+3. Sinus drainage: PRESENT
+4. Nocturia (frequent urination at night): PRESENT
+5. Mammogram results: ABSENT (no specific information is provided, but it&#39;s mentioned that she is up-to-date)
+6. Abdominal pain: ABSENT
+7. Nausea: ABSENT
+8. Vomiting: ABSENT
+9. Diarrhea: ABSENT
+10. Constipation: ABSENT
+11. Blood in urine: ABSENT
+12. Blood in stools: ABSENT
+13. Swelling in ankles: ABSENT
+
+Note that the absence of certain symptoms or diseases does not necessarily mean they are not present, but rather that they were not mentioned in this specific section.
+
+
+
+--- sample_452.txt ---
+Extracted Conditions and Classification:
+Here are the extracted diseases and symptoms with their corresponding presence status:
+
+1. Headaches: PRESENT
+2. Pressure in the face: PRESENT
+3. Sniffles: PRESENT
+4. Sore throat: PRESENT
+5. Loose cough: PRESENT
+6. Rash on:
+ * Face: PRESENT
+ * Back: PRESENT
+ * Arms: PRESENT
+7. Fifth disease (erythema infectiosum): PRESENT
+8. Itching of the rash: PRESENT
+9. Wheezing: ABSENT
+10. Asthma: ABSENT
+
+Note that Benadryl is mentioned as a treatment for the symptoms, which may indicate an underlying allergic reaction or condition, but it&#39;s not explicitly stated as a separate diagnosis.
+
+
+
+--- sample_391.txt ---
+Extracted Conditions and Classification:
+Based on the provided subjective section, here are the extracted diseases and symptoms with their presence status:
+
+1. High blood pressure: PRESENT
+2. Diabetes: PRESENT
+3. Obesity: PRESENT
+4. Allergic symptoms: PRESENT
+5. Irritable bowel syndrome (IBS): PRESENT
+6. Rectal bleeding: PRESENT
+7. Difficulty getting back to sleep: PRESENT
+
+The following conditions are mentioned as having been successfully managed in the past, but their current status is not explicitly stated:
+
+1. Ideal blood sugar control (achieved with Lantus, Actos, glyburide, and metformin): ABSENT (current sugars are high)
+2. Sleep issues: PRESENT
+
+Note that the presence or absence of a condition can be inferred based on the context provided, but in some cases, it may not be explicitly stated.
+
+
+
+--- sample_392.txt ---
+Extracted Conditions and Classification:
+Based on the provided subjective section, here are the extracted diseases and symptoms with their presence/absence status:
+
+1. Elevated blood pressure: PRESENT (though better-controlled)
+2. Office hypertension: PRESENT
+3. Arm symptoms (right arm): ABSENT (resolved)
+4. Muscle problem in right shoulder blade: ABSENT (attributed to rotator cuff injury, which doesn&#39;t cause problems)
+5. Degenerative changes in C-spine and glenoid: ABSENT (only shown on x-rays, no current symptoms)
+6. Rotator cuff injury with humeral head high up in the glenoid: ABSENT (only a finding, not causing any problems)
+7. Vague stomach problems: PRESENT
+8. Aches or pains off Aleve: PRESENT (improved when stopped using Aleve)
+9. Acid reflux symptoms or heartburn: ABSENT
+10. Sore sores in mouth: ABSENT (heals up quickly, but recurring)
+11. Dentures-related issues: ABSENT (no specific symptoms mentioned)
+12. Lexapro-induced tremor (upper body): PRESENT (described as &quot;somewhat of a tremor&quot; and helped by the medication)
+
+Note that some conditions, like office hypertension, are self-reported and may not necessarily be clinically present, but rather perceived or experienced by the patient.
+
+
+
+--- sample_2627.txt ---
+Extracted Conditions and Classification:
+Here are the extracted conditions and symptoms with their presence status:
+
+1. COPD (Chronic Obstructive Pulmonary Disease): PRESENT
+2. Community Acquired Pneumonia: PRESENT
+3. Wheezes (in both lungs): PRESENT
+4. Rhonchi (on the right side): PRESENT
+5. Respiratory distress (indicated by &quot;lungs were very tight&quot;): PRESENT
+6. Weakness: PRESENT
+7. Fall with possible subchondral fracture: PRESENT
+8. Swelling of suprapatellar bursa on the right side: PRESENT
+9. Right anterior knee pain: PRESENT
+10. Bruising under the right anterior knee: PRESENT
+11. Swelling under the right anterior knee: PRESENT
+
+Note that headache, back pain, and neck pain are mentioned as being absent this morning, indicating they were not present at the time of the assessment.
+
+
+
+--- sample_343.txt ---
+Extracted Conditions and Classification:
+Based on the provided subjective section, here are the extracted diseases and symptoms with their corresponding presence/absence status:
+
+1. Asthma: PRESENT
+2. Allergies: PRESENT
+3. Vaginal irritation (likely related to hormonal fluctuations): PRESENT (but associated with a past medication, Advair)
+4. Irritability: PRESENT
+5. Premenstrual Syndrome (PMS): PRESENT
+6. Menstruation irregularity (shorter periods): PRESENT
+7. Spotting after menstrual cycles: PRESENT
+8. Urinary tract infection (UTI): ABSENT (no recent recheck mentioned)
+9. Hot flashes/night sweats: ABSENT
+10. Cholesterol: PRESENT (as part of lab work results sent for life insurance application)
+
+Please note that some conditions, like allergies and asthma, are likely ongoing rather than a single episode or diagnosis.
+
+
+
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<p>Using Ollama with LangChain and an LLM like LLaMA3 provides flexible and context-aware extraction of medical information from clinical text. Unlike rule-based tools or traditional NER, the LLM can understand nuanced language and infer whether a symptom or disease is present or absent, even when it&#39;s implied rather than explicitly stated. This makes it particularly powerful for subjective clinical narratives. However, its utility depends on a reliable local setup—running Ollama requires sufficient compute and correct networking. Additionally, LLMs may hallucinate or misclassify without proper prompt tuning and evaluation.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h2>Evaluate Accuracy of LLM Model by Comparing to Annotations<a rel="noopener" class="anchor-link" href="#Evaluate-Accuracy-of-LLM-Model-by-Comparing-to-Annotations">&#182;</a></h2>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<h4>First Clinical Note:<a rel="noopener" class="anchor-link" href="#First-Clinical-Note:">&#182;</a></h4>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[23]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">precision_score</span><span class="p">,</span> <span class="n">recall_score</span><span class="p">,</span> <span class="n">f1_score</span>
+
+<span class="c1"># Predicted conditions (from LLM model)</span>
+<span class="n">predicted_conditions</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">&quot;Numbness&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Tingling&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Pain in the toes&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Sharp quality pain&quot;</span><span class="p">,</span> <span class="s2">&quot;ABSENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Paraesthesias in the left toe&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Pain radiation up the leg&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Bilateral shoulder pains&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Sinus allergies&quot;</span><span class="p">,</span> <span class="s2">&quot;ABSENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Hypothyroidism&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Thrombocythemia&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Insomnia&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Hypertension&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">)</span>
+<span class="p">]</span>
+
+<span class="c1"># Annotations (Based off INCEpTION)</span>
+<span class="n">annotations</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">&quot;Numbness&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Tingling&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Pain in the toes&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Sharp quality pain&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Paraesthesias in the left toe&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Pain radiation up the leg&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Bilateral shoulder pains&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Sinus allergies&quot;</span><span class="p">,</span> <span class="s2">&quot;ABSENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Hypothyroidism&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Thrombocythemia&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Insomnia&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;Hypertension&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESENT&quot;</span><span class="p">)</span>
+<span class="p">]</span>
+
+<span class="c1"># Extract predicted and true labels</span>
+<span class="n">predicted_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">condition</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">condition</span> <span class="ow">in</span> <span class="n">predicted_conditions</span><span class="p">]</span>
+<span class="n">true_labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">condition</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">condition</span> <span class="ow">in</span> <span class="n">annotations</span><span class="p">]</span>
+
+<span class="c1"># Calculate metrics</span>
+<span class="n">precision</span> <span class="o">=</span> <span class="n">precision_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">predicted_labels</span><span class="p">,</span> <span class="n">pos_label</span><span class="o">=</span><span class="s1">&#39;PRESENT&#39;</span><span class="p">)</span>
+<span class="n">recall</span> <span class="o">=</span> <span class="n">recall_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">predicted_labels</span><span class="p">,</span> <span class="n">pos_label</span><span class="o">=</span><span class="s1">&#39;PRESENT&#39;</span><span class="p">)</span>
+<span class="n">f1</span> <span class="o">=</span> <span class="n">f1_score</span><span class="p">(</span><span class="n">true_labels</span><span class="p">,</span> <span class="n">predicted_labels</span><span class="p">,</span> <span class="n">pos_label</span><span class="o">=</span><span class="s1">&#39;PRESENT&#39;</span><span class="p">)</span>
+
+<span class="c1"># Output the evaluation metrics</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Precision: </span><span class="si">{</span><span class="n">precision</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Recall: </span><span class="si">{</span><span class="n">recall</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;F1 Score: </span><span class="si">{</span><span class="n">f1</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output">
+<pre>Precision: 1.00
+Recall: 0.91
+F1 Score: 0.95
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput">
+<p>The model demonstrated strong performance in identifying and classifying diseases and symptoms from the subjective section of clinical notes. With a precision of 1.00, it accurately predicted all conditions labeled as PRESENT without any false positives, indicating high reliability when it does make a prediction. The recall of 0.91 shows that it successfully identified the majority of relevant conditions, missing only a small portion of those that were actually PRESENT in the ground truth annotations. This balance between precision and recall is reflected in the high F1 score of 0.95, suggesting the model is both accurate and consistent. Overall, these results indicate that the model is effective for extracting and classifying clinical conditions, with room for minor improvements in recall to capture all relevant entities.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&#160;[&#160;]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span> 
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+
+<script type="module" src="https://s.brightspace.com/lib/bsi/2025.4.217/unbundled/mathjax.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+						if (document.querySelector('math') || /\$\$|\\\(|\\\[|\\begin{|\\ref{|\\eqref{/.test(document.body.innerHTML)) {
+							document.querySelectorAll('mspace[linebreak="newline"]').forEach(elm => {
+								elm.setAttribute('style', 'display: block; height: 0.5rem;');
+							});
+
+							document.querySelectorAll('math mmultiscripts > none').forEach(elm => {
+								const mrow = document.createElementNS('http://www.w3.org/1998/Math/MathML', 'mrow');
+								elm.replaceWith(mrow);
+							});
+
+							window.D2L.MathJax.loadMathJax({
+								outputScale: 1,
+								renderLatex: true,
+								enableMML3Support: false
+							});
+						}
+					});</script><script type="module" src="https://s.brightspace.com/lib/bsi/2025.4.217/unbundled/prism.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					document.querySelectorAll('.d2l-code').forEach(code => {
+						window.D2L.Prism.formatCodeElement(code);
+					});
+				});</script><script type="module" src="https://s.brightspace.com/lib/bsi/2025.4.217/unbundled/embeds.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					window.D2L.EmbedRenderer.renderEmbeds(document.body);
+				});</script></body></html>
